@@ -1,0 +1,35 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('attendances', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignId('hub_id')->constrained('hubs')->cascadeOnDelete();
+            $table->date('date');
+            $table->enum('status', ['present', 'absent']);
+            $table->boolean('is_friday')->default(false);
+            $table->foreignId('marked_by')->constrained('users'); // Manager who took attendance
+            $table->timestamps();
+
+            // Prevent duplicate attendance for same user on same day
+            $table->unique(['user_id', 'date']);
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('attendances');
+    }
+};
