@@ -1,0 +1,64 @@
+name: Deploy Office Management System
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, xml, bcmath, mysql, zip
+
+      - name: Install Backend Dependencies
+        run: |
+          cd backend
+          composer install --no-dev --optimize-autoloader
+
+      - name: Build Frontend Assets
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build
+        run: |
+          cd frontend
+          npm install
+          npm run build # Ensure your build output goes to ../backend/public
+
+      - name: Deploy via Rsync
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "."
+          target: ${{ secrets.TARGET_DIR }}
+          exclude: |
+            .git
+            .github
+            backend/node_modules
+            frontend/node_modules
+            backend/storage
+            backend/public/storage # IMPORTANT: This keeps your uploaded employee photos safe
+            backend/.env
+
+      - name: Post-Deployment Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ${{ secrets.TARGET_DIR }}/backend
+            php artisan down || true
+            php artisan migrate --force
+            php artisan optimize
+            php artisan up
