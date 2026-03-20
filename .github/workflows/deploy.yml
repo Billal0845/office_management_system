@@ -18,12 +18,12 @@ jobs:
           php-version: "8.3"
           extensions: mbstring, xml, bcmath, mysql, zip
 
-      - name: Install Backend Dependencies
+      - name: Install Laravel Dependencies
         run: |
           cd backend
           composer install --no-dev --optimize-autoloader
 
-      - name: Build Frontend Assets
+      - name: Build React Assets
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -31,24 +31,17 @@ jobs:
         run: |
           cd frontend
           npm install
-          npm run build # Ensure your build output goes to ../backend/public
+          npm run build
 
       - name: Deploy via Rsync
-        uses: appleboy/scp-action@v0.1.7
+        uses: easingthemes/ssh-deploy@v5.1.0
         with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "."
-          target: ${{ secrets.TARGET_DIR }}
-          exclude: |
-            .git
-            .github
-            backend/node_modules
-            frontend/node_modules
-            backend/storage
-            backend/public/storage # IMPORTANT: This keeps your uploaded employee photos safe
-            backend/.env
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          TARGET: ${{ secrets.TARGET_DIR }}
+          # Exclude what should not be overwritten
+          EXCLUDE: "/.git/, /.github/, /backend/node_modules/, /frontend/node_modules/, /backend/storage/, /backend/public/storage/, /backend/.env"
 
       - name: Post-Deployment Commands
         uses: appleboy/ssh-action@v1.0.3
